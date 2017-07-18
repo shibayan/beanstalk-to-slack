@@ -6,6 +6,8 @@ using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
+using Amazon.ElasticBeanstalk;
+using Amazon.ElasticBeanstalk.Model;
 using Amazon.Lambda.Core;
 
 using Newtonsoft.Json;
@@ -23,6 +25,14 @@ namespace BeanstalkToSlack
 
         private static async Task SendToSlack(string channel, MessageData data)
         {
+            var beanstalkClient = new AmazonElasticBeanstalkClient();
+
+            var response = await beanstalkClient.DescribeEnvironmentsAsync(new DescribeEnvironmentsRequest
+            {
+                ApplicationName = data.Application,
+                EnvironmentNames = new List<string> { data.Environment }
+            });
+
             var httpClient = new HttpClient();
 
             var payload = new
@@ -39,6 +49,11 @@ namespace BeanstalkToSlack
                         {
                             new
                             {
+                                title = "Version Label",
+                                value = response.Environments[0].VersionLabel
+                            },
+                            new
+                            {
                                 title = "Application",
                                 value = $"<https://ap-northeast-1.console.aws.amazon.com/elasticbeanstalk/home?region=ap-northeast-1#/application/overview?applicationName={data.Application}|{data.Application}>",
                                 @short = true
@@ -46,7 +61,7 @@ namespace BeanstalkToSlack
                             new
                             {
                                 title = "Environment",
-                                value = data.Environment,
+                                value = $"<https://ap-northeast-1.console.aws.amazon.com/elasticbeanstalk/home?region=ap-northeast-1#/environment/dashboard?applicationName={data.Application}&environmentId={response.Environments[0].EnvironmentId}|{data.Environment}>",
                                 @short = true
                             },
                             new
